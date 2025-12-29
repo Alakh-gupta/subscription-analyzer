@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h3>Tracked Screen Time</h3>
+<pre id="output">Loading...</pre>
+
+<script>
+chrome.storage.local.get("usage", (data) => {
+  document.getElementById("output").innerText =
+    JSON.stringify(data.usage || {}, null, 2);
+});
+</script>
+</body>
+</html>
