@@ -344,8 +344,17 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
               <p>4. Select your extension folder: <code className="bg-slate-900 px-1 py-0.5 rounded text-blue-400 select-all font-mono text-[10px]">c:\Users\ADMIN\OneDrive\Desktop\coding\subscription-analyzer\extension</code></p>
             </div>
           </div>
-          <div className="bg-rose-500/10 border border-rose-500/30 px-5 py-3 rounded-2xl text-[11px] font-black text-rose-400 uppercase tracking-widest animate-pulse whitespace-nowrap align-middle text-center">
-            ⌛ Waiting for Connection...
+          <div className="flex flex-col items-center gap-3 whitespace-nowrap min-w-[200px] w-full md:w-auto">
+            <a 
+              href="/extension.zip" 
+              download="subscription-analyzer.zip"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-0.5"
+            >
+              <span>📥</span> Download Extension (.zip)
+            </a>
+            <div className="bg-rose-500/10 border border-rose-500/30 px-5 py-2.5 rounded-xl text-[10px] font-black text-rose-400 uppercase tracking-widest animate-pulse text-center w-full">
+              ⌛ Waiting for Connection...
+            </div>
           </div>
         </div>
       )}
