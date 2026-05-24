@@ -1,43 +1,35 @@
-let activePlatform = null;
-let startTime = null;
+// Initialize focus state
+chrome.storage.local.set({ browserFocused: true });
 
-// Fired when user switches tabs
-chrome.tabs.onActivated.addListener(async (info) => {
-  const tab = await chrome.tabs.get(info.tabId);
-  handleTab(tab.url);
-});
-
-// Fired when page finishes loading
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete") {
-    handleTab(tab.url);
-  }
-});
-
-function handleTab(url = "") {
-  const platform = getPlatform(url);
-
-  if (platform) {
-    if (!activePlatform) {
-      activePlatform = platform;
-      startTime = Date.now();   // ⏱ START
-    }
+// Listen for browser window focus changes to stop tracking when user minimizes or switches to other system applications
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    chrome.storage.local.set({ browserFocused: false });
   } else {
-    stopTracking();
+    chrome.storage.local.set({ browserFocused: true });
   }
-}
+});
 
-function stopTracking() {
-  if (activePlatform && startTime) {
-    const seconds =
-      Math.floor((Date.now() - startTime) / 1000); // ⏱ STOP
-
-    saveUsage(activePlatform, seconds);
+// Process heartbeat messages from content scripts
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (message.action === "heartbeat") {
+    try {
+      // 1. Verify that the heartbeat sender tab is the active tab in its window
+      if (sender.tab && sender.tab.active) {
+        // 2. Check if the browser window has focus
+        const data = await chrome.storage.local.get("browserFocused");
+        if (data.browserFocused !== false) {
+          const platform = getPlatform(message.url);
+          if (platform) {
+            saveUsage(platform, 1); // Record exactly 1 second of usage
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error processing heartbeat:", err);
+    }
   }
-
-  activePlatform = null;
-  startTime = null;
-}
+});
 
 function saveUsage(platform, seconds) {
   chrome.storage.local.get(["usage"], (data) => {
@@ -45,19 +37,39 @@ function saveUsage(platform, seconds) {
     usage[platform] = (usage[platform] || 0) + seconds;
     chrome.storage.local.set({ usage });
 
-    // Send to backend
+    // Send to backend in real-time
     fetch("http://localhost:5000/api/usage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform, seconds })
-    });
+    }).catch(err => console.log("Backend not reachable", err));
   });
 }
 
 function getPlatform(url) {
-  if (!url) return null;
-  if (url.includes("netflix.com")) return "Netflix";
-  if (url.includes("spotify.com")) return "Spotify";
-  if (url.includes("hotstar.com")) return "JioHotstar";
-  return null;
+  if (!url || !url.startsWith("http")) return null;
+  
+  try {
+    const hostname = new URL(url).hostname;
+    let cleanHost = hostname.replace('www.', '');
+    
+    // Explicit overrides
+    if (cleanHost.includes("netflix.com")) return "Netflix";
+    if (cleanHost.includes("spotify.com")) return "Spotify";
+    if (cleanHost.includes("hotstar.com")) return "JioHotstar";
+    if (cleanHost.includes("youtube.com")) return "YouTube Premium";
+    if (cleanHost.includes("aws.amazon.com") || cleanHost.includes("console.aws")) return "AWS Cloud";
+    if (cleanHost.includes("primevideo.com") || cleanHost.includes("amazon.com")) return "Amazon Prime";
+    if (cleanHost.includes("hulu.com")) return "Hulu";
+    
+    // Generic parsing (e.g., github.com -> Github)
+    const parts = cleanHost.split('.');
+    if (parts.length >= 2) {
+      const name = parts[parts.length - 2];
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    }
+    return cleanHost;
+  } catch (e) {
+    return null;
+  }
 }
