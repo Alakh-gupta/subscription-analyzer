@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import AnalyzerChart from "../components/AnalyzerChart";
 
 export default function Dashboard({ dashboardView, setDashboardView }) {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const [dashboard, setDashboard] = useState([]);
   const [profileLink, setProfileLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -107,7 +108,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
 
   const loadDashboard = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/dashboard");
+      const res = await fetch(`${API_URL}/api/dashboard`);
       const data = await res.json();
       setDashboard(data);
     } catch (err) {
@@ -152,7 +153,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
       setScanStep("Found active subscription billings! Importing platform details...");
       await sleep(800);
 
-      const res = await fetch("http://localhost:5000/api/auth/google/mock", {
+      const res = await fetch(`${API_URL}/api/auth/google/mock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: scanEmail })
@@ -185,7 +186,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
 
     setIsLoading(true);
     try {
-      await fetch("http://localhost:5000/api/subscriptions", {
+      await fetch(`${API_URL}/api/subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileLink })
@@ -201,7 +202,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
 
   const deleteSubscription = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/subscriptions/${id}`, {
+      await fetch(`${API_URL}/api/subscriptions/${id}`, {
         method: "DELETE"
       });
       loadDashboard();
@@ -212,7 +213,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
 
   const updateSubscription = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/subscriptions/${id}`, {
+      await fetch(`${API_URL}/api/subscriptions/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: editPlatform, cost: parseFloat(editCost) })
@@ -230,7 +231,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
     
     setIsSearchingContent(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${API_URL}/api/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       setSearchResults(data.results);
     } catch (err) {

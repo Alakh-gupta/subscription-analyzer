@@ -57,7 +57,7 @@ function saveUsage(platform, seconds) {
     chrome.storage.local.set({ usage });
 
     // Send to backend in real-time
-    fetch("http://localhost:5000/api/usage", {
+    fetch("https://subscription-analyzer-lpvf.onrender.com/api/usage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform, seconds })
