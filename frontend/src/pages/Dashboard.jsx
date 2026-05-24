@@ -15,6 +15,34 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState(null);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if DOM signal already exists
+    if (document.documentElement.getAttribute("data-subscription-tracker-active") === "true") {
+      setIsExtensionInstalled(true);
+    }
+
+    // Listen for custom dispatch event from content script
+    const handleActive = () => {
+      setIsExtensionInstalled(true);
+    };
+
+    window.addEventListener("SubscriptionTrackerActive", handleActive);
+
+    // Perform periodic checks to ensure full reliability
+    const checkInterval = setInterval(() => {
+      if (document.documentElement.getAttribute("data-subscription-tracker-active") === "true") {
+        setIsExtensionInstalled(true);
+        clearInterval(checkInterval);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener("SubscriptionTrackerActive", handleActive);
+      clearInterval(checkInterval);
+    };
+  }, []);
 
   const loadDashboard = async () => {
     try {
@@ -203,6 +231,24 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
             {dashboardView === 'analyze' && "High-level cost breakdowns, ROI calculations, and optimization insights."}
             {dashboardView === 'all' && "Master Panel: All tools, charts, subscriptions, and alerts consolidated."}
           </p>
+          <div className="flex items-center gap-3 mt-3">
+            {isExtensionInstalled ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm animate-pulse">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                Live Tracker Connected
+              </span>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  Live Tracker Offline
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  (Enable <strong className="text-blue-400">Developer Mode</strong> in <code>chrome://extensions</code> and load the unpacked extension to track!)
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Local Tab Switcher */}

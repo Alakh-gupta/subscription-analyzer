@@ -39,3 +39,11 @@ document.addEventListener("visibilitychange", () => {
     stopHeartbeat();
   }
 });
+
+// Notify dashboard page that the extension is active (Developer Mode is loaded and tracking)
+try {
+  document.documentElement.setAttribute("data-subscription-tracker-active", "true");
+  window.dispatchEvent(new CustomEvent("SubscriptionTrackerActive"));
+} catch (e) {
+  console.log("Failed to dispatch extension activation event", e);
+}
