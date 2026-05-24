@@ -22,6 +22,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           const platform = getPlatform(message.url);
           if (platform) {
             saveUsage(platform, 1); // Record exactly 1 second of usage
+            broadcastToDashboard(message.url);
+          } else {
+            // Also notify dashboard when visible to keep the live badge active
+            broadcastToDashboard(message.url);
           }
         }
       }
@@ -30,6 +34,21 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
   }
 });
+
+function broadcastToDashboard(activeUrl) {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.url && (tab.url.includes("localhost:") || tab.url.includes("127.0.0.1") || tab.url.includes("vercel.app"))) {
+        chrome.tabs.sendMessage(tab.id, {
+          action: "liveUsageUpdate",
+          url: activeUrl
+        }).catch(err => {
+          // Tab might not have listener loaded, ignore
+        });
+      }
+    });
+  });
+}
 
 function saveUsage(platform, seconds) {
   chrome.storage.local.get(["usage"], (data) => {

@@ -10,6 +10,15 @@ function sendHeartbeat() {
       // Extension was reloaded or context is invalidated, stop running
       stopHeartbeat();
     });
+
+    // Also send local postMessage for real-time 1s optimistic tracking if active tab is dashboard itself
+    try {
+      window.postMessage({
+        type: "SUBSCRIPTION_TRACKER_HEARTBEAT",
+        url: window.location.href,
+        isExtensionActive: true
+      }, "*");
+    } catch (e) {}
   }
 }
 
@@ -37,6 +46,19 @@ document.addEventListener("visibilitychange", () => {
     startHeartbeat();
   } else {
     stopHeartbeat();
+  }
+});
+
+// Listen for cross-tab updates broadcasted from background.js
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "liveUsageUpdate") {
+    try {
+      window.postMessage({
+        type: "SUBSCRIPTION_TRACKER_HEARTBEAT",
+        url: message.url,
+        isExtensionActive: true
+      }, "*");
+    } catch (e) {}
   }
 });
 

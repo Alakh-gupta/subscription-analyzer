@@ -16,33 +16,94 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
   const [searchResults, setSearchResults] = useState(null);
   const [isSearchingContent, setIsSearchingContent] = useState(false);
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
+  const [lastHeartbeatTime, setLastHeartbeatTime] = useState(0);
+
+  const getPlatformNameFromUrl = (url) => {
+    if (!url || !url.startsWith("http")) return null;
+    try {
+      const hostname = new URL(url).hostname;
+      let cleanHost = hostname.replace('www.', '');
+      
+      if (cleanHost.includes("netflix.com")) return "Netflix";
+      if (cleanHost.includes("spotify.com")) return "Spotify";
+      if (cleanHost.includes("hotstar.com")) return "JioHotstar";
+      if (cleanHost.includes("youtube.com")) return "YouTube Premium";
+      if (cleanHost.includes("aws.amazon.com") || cleanHost.includes("console.aws")) return "AWS Cloud";
+      if (cleanHost.includes("primevideo.com") || cleanHost.includes("amazon.com")) return "Amazon Prime";
+      if (cleanHost.includes("hulu.com")) return "Hulu";
+      
+      const parts = cleanHost.split('.');
+      if (parts.length >= 2) {
+        const name = parts[parts.length - 2];
+        return name.charAt(0).toUpperCase() + name.slice(1);
+      }
+      return cleanHost;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const incrementLocalUsage = (platform, seconds) => {
+    setDashboard(prevDashboard => {
+      return prevDashboard.map(sub => {
+        if (sub.platform.toLowerCase() === platform.toLowerCase()) {
+          const updatedHours = parseFloat(sub.totalHours) + (seconds / 3600);
+          return {
+            ...sub,
+            totalHours: parseFloat(updatedHours.toFixed(4))
+          };
+        }
+        return sub;
+      });
+    });
+  };
 
   useEffect(() => {
-    // Check if DOM signal already exists
+    // 1. Initial DOM check
     if (document.documentElement.getAttribute("data-subscription-tracker-active") === "true") {
       setIsExtensionInstalled(true);
+      setLastHeartbeatTime(Date.now());
     }
 
-    // Listen for custom dispatch event from content script
-    const handleActive = () => {
+    // 2. Event listener for fallback DOM dispatch
+    const handleActiveEvent = () => {
       setIsExtensionInstalled(true);
+      setLastHeartbeatTime(Date.now());
     };
+    window.addEventListener("SubscriptionTrackerActive", handleActiveEvent);
 
-    window.addEventListener("SubscriptionTrackerActive", handleActive);
-
-    // Perform periodic checks to ensure full reliability
-    const checkInterval = setInterval(() => {
-      if (document.documentElement.getAttribute("data-subscription-tracker-active") === "true") {
+    // 3. Main HTML5 message receiver (for real-time heartbeats and cross-tab broadcasts)
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === "SUBSCRIPTION_TRACKER_HEARTBEAT") {
         setIsExtensionInstalled(true);
-        clearInterval(checkInterval);
+        setLastHeartbeatTime(Date.now());
+
+        // Optimistically increment local usage metrics in memory for lag-free tracking!
+        if (event.data.url) {
+          const platform = getPlatformNameFromUrl(event.data.url);
+          if (platform) {
+            incrementLocalUsage(platform, 1);
+          }
+        }
       }
-    }, 1000);
+    };
+    window.addEventListener("message", handleMessage);
 
     return () => {
-      window.removeEventListener("SubscriptionTrackerActive", handleActive);
-      clearInterval(checkInterval);
+      window.removeEventListener("SubscriptionTrackerActive", handleActiveEvent);
+      window.removeEventListener("message", handleMessage);
     };
   }, []);
+
+  // 4. Background safety daemon to check if extension goes offline
+  useEffect(() => {
+    const checkOfflineDaemon = setInterval(() => {
+      if (lastHeartbeatTime > 0 && Date.now() - lastHeartbeatTime > 4000) {
+        setIsExtensionInstalled(false);
+      }
+    }, 2000);
+    return () => clearInterval(checkOfflineDaemon);
+  }, [lastHeartbeatTime]);
 
   const loadDashboard = async () => {
     try {
@@ -70,7 +131,7 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
       setTimeout(() => setScanMessage(null), 5000);
     }
 
-    const interval = setInterval(loadDashboard, 1000);
+    const interval = setInterval(loadDashboard, 10000); // 10-second official sync interval to remove all page lag!
     return () => clearInterval(interval);
   }, []);
 
@@ -223,32 +284,23 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800">
         <div>
-          <h1 className="text-4xl font-extrabold text-slate-100 tracking-tight">
+          <h1 className="text-4xl font-extrabold text-slate-100 tracking-tight flex items-center gap-3">
             Subscription Control Panel
+            {isExtensionInstalled ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm uppercase tracking-wider animate-pulse">
+                ● Live Connected
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm uppercase tracking-wider">
+                ● Live Offline
+              </span>
+            )}
           </h1>
           <p className="text-slate-400 text-lg mt-1">
             {dashboardView === 'grid' && "Track usage, manage platforms, and analyze value."}
             {dashboardView === 'analyze' && "High-level cost breakdowns, ROI calculations, and optimization insights."}
             {dashboardView === 'all' && "Master Panel: All tools, charts, subscriptions, and alerts consolidated."}
           </p>
-          <div className="flex items-center gap-3 mt-3">
-            {isExtensionInstalled ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm animate-pulse">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                Live Tracker Connected
-              </span>
-            ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  Live Tracker Offline
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  (Enable <strong className="text-blue-400">Developer Mode</strong> in <code>chrome://extensions</code> and load the unpacked extension to track!)
-                </span>
-              </div>
-            )}
-          </div>
         </div>
         
         {/* Local Tab Switcher */}
@@ -272,6 +324,30 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
           ))}
         </div>
       </header>
+
+      {/* Prominent High-Fidelity Alert Box if live tracking is offline */}
+      {!isExtensionInstalled && (
+        <div className="bg-gradient-to-r from-rose-950/80 to-slate-900/90 border border-rose-500/30 p-6 rounded-3xl shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 animate-fade-in">
+          <div className="space-y-2 text-left">
+            <h4 className="text-lg font-bold text-rose-400 flex items-center gap-2">
+              <span>⚠️</span> Alert: Live Time-Tracking is Disabled!
+            </h4>
+            <p className="text-sm text-slate-300">
+              The dashboard cannot detect your subscription time-tracker extension. Live usage recording is currently suspended.
+            </p>
+            <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/80 text-xs text-slate-400 space-y-1">
+              <p className="font-bold text-slate-300 uppercase tracking-wider mb-1">🔧 Steps to enable Developer Mode & tracking:</p>
+              <p>1. Open Google Chrome and go to <code className="bg-slate-900 px-1 py-0.5 rounded text-blue-400 select-all font-mono text-[10px]">chrome://extensions/</code></p>
+              <p>2. Toggle the <strong>"Developer mode"</strong> switch in the top-right corner to <strong>ON</strong>.</p>
+              <p>3. Click the <strong>"Load unpacked"</strong> button in the top-left corner.</p>
+              <p>4. Select your extension folder: <code className="bg-slate-900 px-1 py-0.5 rounded text-blue-400 select-all font-mono text-[10px]">c:\Users\ADMIN\OneDrive\Desktop\coding\subscription-analyzer\extension</code></p>
+            </div>
+          </div>
+          <div className="bg-rose-500/10 border border-rose-500/30 px-5 py-3 rounded-2xl text-[11px] font-black text-rose-400 uppercase tracking-widest animate-pulse whitespace-nowrap align-middle text-center">
+            ⌛ Waiting for Connection...
+          </div>
+        </div>
+      )}
 
       {scanMessage && (
         <div className={`px-6 py-4 rounded-2xl border font-medium flex items-center gap-3 shadow-lg animate-fade-in ${
