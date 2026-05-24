@@ -15,7 +15,9 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // ------------------ MongoDB Connection ------------------
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/subscription";
+const MONGODB_URI = (process.env.MONGODB_URI && !process.env.MONGODB_URI.includes("<db_password>"))
+  ? process.env.MONGODB_URI 
+  : "mongodb://127.0.0.1:27017/subscription";
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("MongoDB Connected to:", MONGODB_URI.startsWith("mongodb+srv") ? "MongoDB Atlas (Cloud)" : "Local MongoDB"))
   .catch(err => console.error("MongoDB Connection Error:", err));
