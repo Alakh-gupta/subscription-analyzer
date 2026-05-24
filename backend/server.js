@@ -22,6 +22,8 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log("MongoDB Connected to:", MONGODB_URI.startsWith("mongodb+srv") ? "MongoDB Atlas (Cloud)" : "Local MongoDB"))
   .catch(err => console.error("MongoDB Connection Error:", err));
 
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || "http://127.0.0.1:7000";
+
 // ------------------ App Setup ------------------
 const app = express();
 app.use(cors());
@@ -56,7 +58,7 @@ app.get("/api/security/:platform", async (req, res) => {
     const platform = req.params.platform;
 
     const response = await axios.get(
-      `http://127.0.0.1:7000/security/${platform}`
+      `${PYTHON_SERVICE_URL}/security/${platform}`
     );
 
     res.json(response.data);
@@ -83,7 +85,7 @@ app.get("/api/recommendation/:platform", async (req, res) => {
 
     // 2️⃣ Get security data from Python service
     const securityRes = await axios.get(
-      `http://127.0.0.1:7000/security/${platform}`
+      `${PYTHON_SERVICE_URL}/security/${platform}`
     );
 
     const securityScore = securityRes.data.security_score;
@@ -96,7 +98,7 @@ app.get("/api/recommendation/:platform", async (req, res) => {
     let recommendation = "Not Worth It ❌";
     let isAiModel = false;
     try {
-      const aiRes = await axios.post("http://127.0.0.1:7000/predict", {
+      const aiRes = await axios.post(`${PYTHON_SERVICE_URL}/predict`, {
         cost: parseFloat(cost),
         usage_hours: parseFloat(totalHours),
         security_score: parseInt(securityScore)
@@ -438,7 +440,7 @@ app.get("/api/dashboard", async (req, res) => {
         securityScore = securityCache[platformKey].score;
       } else {
         try {
-          const securityRes = await axios.get(`http://127.0.0.1:7000/security/${sub.platform}`);
+          const securityRes = await axios.get(`${PYTHON_SERVICE_URL}/security/${sub.platform}`);
           securityScore = securityRes.data.security_score;
           securityCache[platformKey] = {
             score: securityScore,
@@ -460,7 +462,7 @@ app.get("/api/dashboard", async (req, res) => {
         prompt = aiRecommendationCache[aiKey].recommendation;
       } else {
         try {
-          const aiRes = await axios.post("http://127.0.0.1:7000/predict", {
+          const aiRes = await axios.post(`${PYTHON_SERVICE_URL}/predict`, {
             cost: parseFloat(sub.cost),
             usage_hours: parseFloat(totalHours),
             security_score: parseInt(securityScore)
@@ -510,7 +512,7 @@ app.get("/api/search", async (req, res) => {
 
       if (platform.includes("youtube")) {
         try {
-          const ytRes = await axios.get(`http://127.0.0.1:7000/search/youtube?q=${encodedQuery}`);
+          const ytRes = await axios.get(`${PYTHON_SERVICE_URL}/search/youtube?q=${encodedQuery}`);
           results.push(ytRes.data);
         } catch (err) {
           results.push({
