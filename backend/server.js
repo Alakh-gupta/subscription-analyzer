@@ -15,9 +15,10 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // ------------------ MongoDB Connection ------------------
-mongoose.connect("mongodb://127.0.0.1:27017/subscription")
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.error("MongoDB Error:", err));
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/subscription";
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log("MongoDB Connected to:", MONGODB_URI.startsWith("mongodb+srv") ? "MongoDB Atlas (Cloud)" : "Local MongoDB"))
+  .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ------------------ App Setup ------------------
 const app = express();
