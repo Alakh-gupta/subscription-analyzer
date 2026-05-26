@@ -14,9 +14,10 @@ SECURITY_HEADERS = [
     "Referrer-Policy"
 ]
 
+# Fixed target lookup domains for headers crawling
 PLATFORMS = {
     "netflix": "https://www.netflix.com",
-    "spotify": "https://www.spotify.com",
+    "spotify": "https://open.spotify.com",
     "jiohotstar": "https://www.hotstar.com",
     "youtube premium": "https://www.youtube.com",
     "amazon prime": "https://www.primevideo.com",
@@ -24,7 +25,6 @@ PLATFORMS = {
     "aws cloud": "https://aws.amazon.com",
     "youtube": "https://www.youtube.com"
 }
-
 # ------------------ AI Model Loading ------------------
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "recommendation_model.joblib")
 recommendation_model = None

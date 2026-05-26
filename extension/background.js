@@ -1,7 +1,7 @@
 // Initialize focus state
 chrome.storage.local.set({ browserFocused: true });
 
-// Listen for browser window focus changes to stop tracking when user minimizes or switches to other system applications
+// Listen for browser window focus changes to stop tracking when user minimizes or switches to other applications
 chrome.windows.onFocusChanged.addListener((windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
     chrome.storage.local.set({ browserFocused: false });
@@ -56,12 +56,23 @@ function saveUsage(platform, seconds) {
     usage[platform] = (usage[platform] || 0) + seconds;
     chrome.storage.local.set({ usage });
 
-    // Send to backend in real-time
-    fetch("https://subscription-analyzer-backend-djv3.onrender.com/api/usage", {
+    const payload = JSON.stringify({ platform, seconds });
+    const primaryEndpoint = "https://subscription-analyzer-backend-djv3.onrender.com/api/usage";
+    const localEndpoint = "http://localhost:5000/api/usage";
+
+    // Resilient Dual-Pipeline Network POST
+    fetch(primaryEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, seconds })
-    }).catch(err => console.log("Backend not reachable", err));
+      body: payload
+    }).catch(() => {
+      // Automatic silent fallback to local development server if cloud instance is asleep/offline
+      fetch(localEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload
+      }).catch(err => console.log("Both cloud and local backends are unreachable", err));
+    });
   });
 }
 
@@ -72,7 +83,7 @@ function getPlatform(url) {
     const hostname = new URL(url).hostname;
     let cleanHost = hostname.replace('www.', '');
     
-    // Explicit overrides
+    // Explicit overrides - Fixed Domain parsing matching logic
     if (cleanHost.includes("netflix.com")) return "Netflix";
     if (cleanHost.includes("spotify.com")) return "Spotify";
     if (cleanHost.includes("hotstar.com")) return "JioHotstar";

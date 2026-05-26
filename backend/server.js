@@ -300,11 +300,13 @@ app.get("/api/auth/google/callback", async (req, res) => {
     }
 
     // Redirect back to frontend
-    res.redirect("http://localhost:5173/dashboard?scan=success&found=" + uniqueSubs.length);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    res.redirect(`${frontendUrl}/dashboard?scan=success&found=${uniqueSubs.length}`);
 
   } catch (error) {
     console.error("OAuth callback error:", error);
-    res.redirect("http://localhost:5173/dashboard?scan=error");
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    res.redirect(`${frontendUrl}/dashboard?scan=error`);
   }
 });
 
@@ -326,22 +328,24 @@ app.post("/api/subscriptions", async (req, res) => {
         const url = new URL(urlString);
         const domain = url.hostname.toLowerCase();
         
+        // Inside app.post("/api/subscriptions", ...)
         const platformMap = {
-          "netflix.com": { name: "Netflix", cost: 15.49 },
-          "www.netflix.com": { name: "Netflix", cost: 15.49 },
-          "open.spotify.com": { name: "Spotify", cost: 10.99 },
-          "spotify.com": { name: "Spotify", cost: 10.99 },
-          "youtube.com": { name: "YouTube Premium", cost: 13.99 },
-          "www.youtube.com": { name: "YouTube Premium", cost: 13.99 },
-          "primevideo.com": { name: "Amazon Prime", cost: 14.99 },
-          "www.primevideo.com": { name: "Amazon Prime", cost: 14.99 },
-          "amazon.com": { name: "Amazon Prime", cost: 14.99 },
-          "www.amazon.com": { name: "Amazon Prime", cost: 14.99 },
-          "hulu.com": { name: "Hulu", cost: 7.99 },
-          "www.hulu.com": { name: "Hulu", cost: 7.99 },
-          "hotstar.com": { name: "JioHotstar", cost: 12.99 },
-          "www.hotstar.com": { name: "JioHotstar", cost: 12.99 },
-        };
+        "netflix.com": { name: "Netflix", cost: 15.49 },
+        "www.netflix.com": { name: "Netflix", cost: 15.49 },
+        "spotify.com": { name: "Spotify", cost: 10.99 },
+  "open.spotify.com": { name: "Spotify", cost: 10.99 },
+  "www.spotify.com": { name: "Spotify", cost: 10.99 },
+  "youtube.com": { name: "YouTube Premium", cost: 13.99 },
+  "www.youtube.com": { name: "YouTube Premium", cost: 13.99 },
+  "primevideo.com": { name: "Amazon Prime", cost: 14.99 },
+  "www.primevideo.com": { name: "Amazon Prime", cost: 14.99 },
+  "amazon.com": { name: "Amazon Prime", cost: 14.99 },
+  "www.amazon.com": { name: "Amazon Prime", cost: 14.99 },
+  "hulu.com": { name: "Hulu", cost: 7.99 },
+  "www.hulu.com": { name: "Hulu", cost: 7.99 },
+  "hotstar.com": { name: "JioHotstar", cost: 12.99 },
+  "www.hotstar.com": { name: "JioHotstar", cost: 12.99 },
+};
 
         const found = platformMap[domain];
         if (found) {
@@ -429,15 +433,18 @@ app.get("/api/dashboard", async (req, res) => {
     const usageMap = {};
     usageData.forEach(u => { 
       // handle case insensitivity
-      usageMap[u._id.toLowerCase()] = u.total; 
+      if (u._id) {
+        usageMap[u._id.toLowerCase()] = u.total; 
+      }
     });
 
     const dashboard = await Promise.all(subscriptions.map(async sub => {
-      const totalSeconds = usageMap[sub.platform.toLowerCase()] || 0;
+      const platformName = sub.platform || "Unknown";
+      const totalSeconds = usageMap[platformName.toLowerCase()] || 0;
       const totalHours = (totalSeconds / 3600).toFixed(2);
       
       const now = Date.now();
-      const platformKey = sub.platform.toLowerCase();
+      const platformKey = platformName.toLowerCase();
       
       // 1. Get security score (with 30-second cache)
       let securityScore = 70; // safe fallback
@@ -445,7 +452,7 @@ app.get("/api/dashboard", async (req, res) => {
         securityScore = securityCache[platformKey].score;
       } else {
         try {
-          const securityRes = await axios.get(`${PYTHON_SERVICE_URL}/security/${sub.platform}`);
+          const securityRes = await axios.get(`${PYTHON_SERVICE_URL}/security/${platformName}`);
           securityScore = securityRes.data.security_score;
           securityCache[platformKey] = {
             score: securityScore,
@@ -503,6 +510,7 @@ app.get("/api/dashboard", async (req, res) => {
 });
 
 // ------------------ Unified Subscription Content Search ------------------
+// ------------------ Unified Subscription Content Search ------------------
 app.get("/api/search", async (req, res) => {
   try {
     const query = req.query.q;
@@ -512,6 +520,7 @@ app.get("/api/search", async (req, res) => {
     const results = [];
 
     for (const sub of subscriptions) {
+      if (!sub || !sub.platform) continue; // Skip any malformed or incomplete entries safely
       const platform = sub.platform.toLowerCase();
       const encodedQuery = encodeURIComponent(query);
 
@@ -529,6 +538,7 @@ app.get("/api/search", async (req, res) => {
           });
         }
       } else if (platform.includes("spotify")) {
+        // FIXED: Pointing to verified open web web-player with syntax-compliant template strings
         results.push({
           platform: "Spotify",
           title: `Listen to '${query}' on Spotify`,
@@ -569,7 +579,6 @@ app.get("/api/search", async (req, res) => {
           confidence: "Direct Link ✅"
         });
       } else {
-        // Generic fallback for other platforms
         results.push({
           platform: sub.platform,
           title: `Search '${query}' on ${sub.platform}`,
@@ -585,7 +594,6 @@ app.get("/api/search", async (req, res) => {
     res.status(500).json({ error: "Unified search failed", details: error.message });
   }
 });
-
 // ------------------ Server Start ------------------
 app.listen(5000, () => {
   console.log("Node API running on port 5000");

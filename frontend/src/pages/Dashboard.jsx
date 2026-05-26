@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import AnalyzerChart from "../components/AnalyzerChart";
 
 export default function Dashboard({ dashboardView, setDashboardView }) {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL = typeof window !== "undefined" && 
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ? (import.meta.env.VITE_API_URL || "http://localhost:5000")
+      : "https://subscription-analyzer-backend-djv3.onrender.com";
   const [dashboard, setDashboard] = useState([]);
   const [profileLink, setProfileLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +50,8 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
   const incrementLocalUsage = (platform, seconds) => {
     setDashboard(prevDashboard => {
       return prevDashboard.map(sub => {
-        if (sub.platform.toLowerCase() === platform.toLowerCase()) {
-          const updatedHours = parseFloat(sub.totalHours) + (seconds / 3600);
+        if (sub && sub.platform && platform && sub.platform.toLowerCase() === platform.toLowerCase()) {
+          const updatedHours = parseFloat(sub.totalHours || 0) + (seconds / 3600);
           return {
             ...sub,
             totalHours: parseFloat(updatedHours.toFixed(4))
@@ -413,9 +416,9 @@ export default function Dashboard({ dashboardView, setDashboardView }) {
                         {result.type}
                       </span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${
-                        result.confidence.includes("✅") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                        result.confidence && result.confidence.includes("✅") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"
                       }`}>
-                        {result.confidence}
+                        {result.confidence || "Direct Link ✅"}
                       </span>
                     </div>
                     <p className="text-slate-300 text-sm mt-1.5 font-medium">{result.title}</p>
