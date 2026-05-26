@@ -29,6 +29,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ------------------ Welcome Route ------------------
+app.get("/", (req, res) => {
+  res.send("🚀 Subscription Analyzer Node.js Backend API is Live and Operational!");
+});
+
 // ------------------ Save Tracked Time ------------------
 app.post("/api/usage", async (req, res) => {
   try {
