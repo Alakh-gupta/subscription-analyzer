@@ -1,0 +1,21 @@
+services:
+  # 1. Express API Backend Service
+  - type: web
+    name: subscription-analyzer-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://demo:demo@cluster.mongodb.net/subscription
+      - key: PYTHON_SERVICE_URL
+        value: https://subscription-analyzer-security.onrender.com
+
+  # 2. Python Flask Security AI Service
+  - type: web
+    name: subscription-analyzer-security
+    env: python
+    rootDir: security-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
