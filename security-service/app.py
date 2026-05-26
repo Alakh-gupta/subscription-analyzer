@@ -3,6 +3,7 @@ import requests
 import time
 import os
 import joblib
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -103,7 +104,8 @@ def predict_recommendation():
         security_score = int(data.get("security_score", 50))
         
         # Predict label: 0 (Not Worth It), 1 (Use Occasionally), 2 (Worth It)
-        prediction = recommendation_model.predict([[cost, usage_hours, security_score]])[0]
+        features = pd.DataFrame([[cost, usage_hours, security_score]], columns=['cost', 'usage_hours', 'security_score'])
+        prediction = recommendation_model.predict(features)[0]
         
         labels = {
             0: "Not Worth It ❌",
