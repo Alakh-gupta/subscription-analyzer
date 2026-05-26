@@ -10,7 +10,7 @@ services:
       - key: MONGODB_URI
         value: mongodb+srv://demo:demo@cluster.mongodb.net/subscription
       - key: PYTHON_SERVICE_URL
-        value: https://subscription-analyzer-security.onrender.com
+        value: https://subscription-analyzer-1-jmdo.onrender.com
 
   # 2. Python Flask Security AI Service
   - type: web
